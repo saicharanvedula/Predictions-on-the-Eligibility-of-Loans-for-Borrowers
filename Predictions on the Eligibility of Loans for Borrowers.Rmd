@@ -1,0 +1,211 @@
+---
+title: "Predictions on the Eligibility of Loans for Borrowers"
+author: "Sai Charan Vedula"
+date: "15/06/2022"
+output: 
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# load all libraries
+#install.packages("fastDummies")
+library(data.table)
+library(dplyr)
+library(class)
+library(caret)
+library(stringr)
+library(ggplot2)
+library(tidyr)
+library(gtools)
+library(fastDummies)
+
+```
+
+## Abstract
+There are a variety of products that are available for the banking system to provide but their main source of revenue is the credit lines. Banks always make profit through the interest that they earn on these loans. The profit or loss of any given bank is affected by the banks by either the borrowers default or repays any loans that they have borrowed. As a result, the Non-Performing Assets in any given bank through the forecasting of loan defaulters reduces. Therefore, there needs to have further investigations into this occurrence since with reliable and effective forecasts there is benefit maximization. With the logistic regression model, which is a predictive analytics tool, it provides the benefit of detecting loan defaulters in the most reliable and convenient manner. Therefore, for a successful forecast, dataset from Kaggle.com website is obtained. Various performance indicators were calculated by the utilization of the Logistic Regression model. The sensitivity and specificity performance metrics are used in providing comparison for the models. Additionally, in the case of checking the account details, the logistic model is of importance as it involves the demographic variables like age, loan amount, loan status, purpose that are essential when determining the probability of loan default or how risky a borrower is when acquiring any given loan. With the utilization of the model it is possible to easily identify the most suitable clients whom the bank can target and issue loans by evaluating their loan default’s plausibility. From the model, it is clear that there needs to have assessment of other attributes associated with the creditor as they play a significant role in making decisions on credit lines and also predicting in loan defaulters apart from giving loans only to the wealthy borrowers. 
+
+
+
+## Introduction
+
+There are a variety of products that a banking system can sell but one of their main source of income is the provision of loans to their potential borrowers. With lending out money to their potential borrowers they are able to make profits through the interest earned from this loans. However, their profit or loss is affected by whether the borrowers repays or defaults on their loans. To minimize on their Non-Performing Assets, the banking system can perform predictions or forecasts for loan defaulters. Therefore, there needs to have a system that makes it easy for the bank to make predictions on the defaulters and non-defaulters borrowers. This project therefore implements a predictive analytics tool, Logistic Regression models that will be essential in the calculation of various performance measures important when giving out loans. With the model it will be possible to target the right customers for loans. It will be possible to ensure that banks do not only give loans to the wealthy borrowers but there should be a consideration of various characteristics of any potential borrowers that will help in making predictions on loan defaulters and credit decisions. 
+## Literature Review
+
+In a study by Sheikh et al. (2020), the authors utilized data obtained from various banks for different customers who had their loans approved through a consideration of set criteria. A machine learning model was trained to ensure that they obtained accurate results. Their main purpose in this study was to have a forecast on the safety of loan that the bank had given to theijr customers. Therefore, they utilized a logistic regression model in predicting the loan safety. In their study, it was identified by the authors that the various parameters that needed to be taken into account when crediting a loan are Customer Assets, Business Value, and credit history. In another study by Vaidya (2017, the author main focus is the logistic regression technique and how this can be represented mathematically. In actualizing the probabilistic and predictive techniques to a given loan approval prediction problem, the author employs the machine learning method, logistic regression, in the study. In their study, Zhang et al. (2019) presented a logistic regression analysis to determine several classification thresholds on imbalanced datasets. Arun et al. (2016) have illustrated on how banks can reduce the risk factor in picking a safe individual for crediting loans to ensure they save money and time. The authors used the technique of mining Big Data from previous records of customers who have been credited with loans from which a machine learning model is taught on how to obtain accurate results. 
+
+## Theory
+
+
+
+## Data
+The dataset that have been used for this project is retrieved from  https://www.kaggle.com/datasets/vipin20/loan-application-data. This data includes:
+
+```{r echo=FALSE}
+loans_data <- read.csv("C:/Users/User/Downloads/loans_data.csv", stringsAsFactors = T)
+
+glimpse(loans_data)
+
+```
+The Credit_History variable has been changed to factor from numerical. 
+```{r}
+loans_data$Credit_History <- as.factor(loans_data$Credit_History)
+```
+There are unnecessary columns that needs to be removed. This include the Loan_ID and X columns. 
+```{r}
+loans_data <- loans_data[-c(1:2,15)]
+```
+From the dataset, it is depicted that the Total_Income variable has the $ sign and this makes it not to be considered as numerical value. Therefore, we delete this column and create a new one by adding together the values for CoapplicantIncome and ApplicantIncome variables to convert it to numerical values. 
+```{r}
+loans_data$Total_Income <- rowSums(loans_data[,c("ApplicantIncome", "CoapplicantIncome")])
+```
+
+
+To avoid redundancy, the CoapplicantIncome and ApplicantIncome variables have been removed. 
+
+```{r}
+loans_data <- loans_data[-c(6:7)]
+
+```
+
+```{r echo=FALSE}
+str(loans_data)
+
+```
+Next step involve checking if there are any missing values in the dataset. 
+
+```{r}
+anyNA(loans_data)
+```
+There are missing values in the dataset, and therefore needs to check in each column for the missing values. 
+
+```{r}
+colSums(is.na(loans_data))
+```
+The rows with missing values are excluded.
+
+```{r}
+loans_data_clean <- na.omit(loans_data)
+colSums(is.na(loans_data_clean))
+```
+Next, the dataset is checked for any outliers that may lead to bias results. 
+```{r}
+boxplot(loans_data_clean)
+```
+
+From the boxplot above, it is clear that there are outliers. Therefore, the data is cleaned up to avoid biased analysis.
+
+```{r}
+loans_data_cleaned1 <- loans_data_clean[loans_data_clean$Total_Income < 8000,]
+
+summary(loans_data_cleaned1)
+```
+The dataset is now free from outliers as illustrated in the boxplot below.
+```{r echo=FALSE}
+boxplot(loans_data_cleaned1$Total_Income)
+```
+Since our target variable is Loan_Status, we check its proportion. 
+```{r}
+table(loans_data_cleaned1$Loan_Status)
+```
+The target variable has a ratio of 1:2 and this indicates that it is balanced and therefore the dataset can be split to train and test set. 
+The dataset has been split into 80% training set and 20% test set. 
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(123)
+
+sets <- sample(x = nrow(loans_data_cleaned1), 
+                size = nrow(loans_data_cleaned1)*0.8)
+
+#splitting
+train_loan <- loans_data_cleaned1[sets,]
+test_loan <-  loans_data_cleaned1[-sets,]
+```
+
+
+## Methodology
+Having cleaned and pre-processed the dataset, the next setion involved the building of the model. The model include the logistic regression model which is created using the glm() function. 
+
+
+```{r}
+model_1 <- glm(formula = Loan_Status ~ 1, data = train_loan, family = binomial)
+model_2 <- glm(formula = Loan_Status~., data = train_loan, family = binomial)
+
+summary(model_2)
+
+```
+
+Next step involve performing the feature selection of the created model
+
+```{r}
+model_stepwise <- step(object = model_1,
+                   direction = "both",
+                   scope = list(upper = model_2),
+                   trace = FALSE)
+summary(model_stepwise)
+
+```
+
+
+
+```{r}
+
+```
+
+
+```{r}
+
+
+```
+
+
+## Results
+
+Having created the logistic regression model, there were various insights identified. First, from the model it was identified that the LoanAmount and Total_Income are the determinant factors for loan approval. 
+
+```{r}
+optimum_model <- glm(formula = Loan_Status ~ Credit_History + Property_Area + Loan_Amount_Term + LoanAmount + Total_Income, family = binomial, data = train_loan)
+
+summary(optimum_model)
+
+
+```
+Having the optimum_model the predictions on the test data for loan eligibility was possible and the results of the model are illustrated. 
+```{r}
+test_loan$Eligible <- predict(optimum_model, type = "response", newdata =test_loan)
+head(test_loan)
+
+```
+Atthreshold for this model was set to 0.5, where if the eligibility prediction is greater than 0.5 the borrower is eligible and if the eligibility probability is less than 0.5 the the customer is not eligible for loan. 
+```{r}
+test_loan$eligibility_label <- ifelse(test = test_loan$Eligible > 0.5,
+                                yes = "Y",
+                                no = "N")
+
+test_loan
+```
+The perfomance of the logistic regression model in predicting the eligibility of loans is pretty good. IT has a prediction accuracy rate of 79.1%. 
+```{r}
+test_loan$eligibility_label <- as.factor(test_loan$eligibility_label)
+model_evaluation <- confusionMatrix(data = test_loan$eligibility_label,
+                reference = test_loan$Loan_Status,
+                positive = "Y")
+
+model_evaluation
+
+
+```
+
+## Conclusion
+From the analysis and prediction of this project, it has been identified that the logistic regression model is pretty good in predicting the loans eligibility of bank's customers. 
+
+# References
+Arun, K., Ishan, G., & Sanmeet, K. (2016). Loan approval prediction based on machine learning approach. IOSR J. Comput. Eng, 18(3), 18-21.
+
+Sheikh, M. A., Goel, A. K., & Kumar, T. (2020, July). An approach for prediction of loan approval using machine learning algorithm. In 2020 International Conference on Electronics and Sustainable Communication Systems (ICESC) (pp. 490-494). IEEE.
+
+Zhang, H., Li, Z., Shahriar, H., Tao, L., Bhattacharya, P., & Qian, Y. (2019, July). Improving prediction accuracy for logistic regression on imbalanced datasets. In 2019 IEEE 43rd Annual Computer Software and Applications Conference (COMPSAC) (Vol. 1, pp. 918-919). IEEE.
+
+Vaidya, A. (2017, July). Predictive and probabilistic approach using logistic regression: Application to prediction of loan approval. In 2017 8th International Conference on Computing, Communication and Networking Technologies (ICCCNT) (pp. 1-6). IEEE.
+
